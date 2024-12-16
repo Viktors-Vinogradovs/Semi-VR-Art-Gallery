@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Semi-VR Art Gallery</title>
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        canvas {
+            background-color: #f5f5f5; /* Light background for 2D illusion */
+        }
+
+        #search-overlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            display: none; /* hidden by default */
+            z-index: 9999;
+        }
+
+        #search-box {
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        #search-box input {
+            width: 200px;
+            padding: 10px;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        #search-box button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background: #4CAF50;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+        }
+
+        #paintings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px; padding: 20px;
+        }
+
+        /* Top-right instructions overlay */
+        #top-right-instructions {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.5);
+            color: #fff;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            max-width: 200px;
+            z-index: 9999;
+            display: block; /* Initially visible */
+        }
+    </style>
+</head>
+<body>
+    <div id="top-right-instructions">
+        <strong>Controls:</strong><br>
+        - Press "I" to Search<br>
+        - Press "A"/"D" to change paintings<br>
+        - Press "Space" to toggle free look<br>
+        - Press "W"/"S" to change camera positions<br>
+        - Press "C" to show/hide instructions
+    </div>
+
+    <!-- Search Overlay -->
+    <div id="search-overlay">
+        <div id="search-box">
+            <h3>Search Paintings</h3>
+            <input type="text" id="search-input-field" placeholder="Search by title or artist">
+            <br><br>
+            <!-- Sorting dropdown -->
+            <label for="sort-select">Sort by:</label>
+            <select id="sort-select">
+                <option value="none">None</option>
+                <option value="title-asc">Title (A-Z)</option>
+                <option value="title-desc">Title (Z-A)</option>
+                <option value="artist-asc">Artist (A-Z)</option>
+                <option value="artist-desc">Artist (Z-A)</option>
+                <option value="year-asc">Year (Oldest First)</option>
+                <option value="year-desc">Year (Newest First)</option>
+            </select>
+            <br><br>
+            <button id="search-submit-button">Search</button>
+        </div>
+    </div>
+
+    <a-scene background="color: #f5f5f5">
+        <!-- Instructions Panel -->
+        <a-entity id="instructions-panel" position="0 1 -1.5" visible="false">
+            <a-plane color="#ffffff" width="2.5" height="1.5" material="shader:flat" class="clickable">
+                <a-text
+                    value="Controls:\n- Press 'I' to search\n- Press 'A'/'D' to navigate paintings\n- Press 'Space' to free look\n\nGaze at 'Got it' below to close"
+                    align="center"
+                    color="#333"
+                    width="2"
+                    position="0 0.2 0.01">
+                </a-text>
+                <a-plane
+                    id="got-it-button"
+                    color="#4CAF50"
+                    width="0.8"
+                    height="0.3"
+                    position="0 -0.4 0.02"
+                    class="clickable">
+                    <a-text value="Got it" align="center" color="#fff" position="0 0 0.01" width="2"></a-text>
+                </a-plane>
+            </a-plane>
+        </a-entity>
+
+        <a-assets id="art-assets" timeout="5000"></a-assets>
+
+        <a-entity id="camera" camera position="0 1.6 2" look-controls>
+
+        </a-entity>
+
+        <!-- Parent entity for the search panel and background -->
+<a-entity id="search-panel" position="0 0.5 3" rotation="-45 0 0" visible="true">
+    <!-- Background plane behind the search UI -->
+    <a-plane id="search-background" width="2" height="1.5" color="#f5f5f5" position="0 0 0"></a-plane>
+
+    <!-- Search Input Plane slightly in front of background (z:0.01) -->
+    <a-plane id="search-input-plane" position="0 0.2 0.01" width="2" height="0.6" color="#FFFFFF" class="clickable">
+        <a-text value="Press `I` to Search" align="center" position="0 0 0.01" color="#666666" width="2.5"></a-text>
+    </a-plane>
+
+    <!-- Search Button Plane also slightly in front at the same depth -->
+    <a-plane id="search-button-plane" position="0 -0.2 0.02" width="1" height="0.4" color="#4CAF50" class="clickable">
+        <a-text value="Search" align="center" position="0 0 0.01" color="#FFFFFF" width="1"></a-text>
+    </a-plane>
+</a-entity>
+
+
+        <!-- Simple background -->
+        <a-plane position="0 0.5 3" rotation="-45 0 0" width="1" height="1" color="#f5f5f5"></a-plane>
+    </a-scene>
+
+    <div id="paintings-grid"></div>
+
+    <script src="static/script.js" defer></script>
+    <script>
+        document.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'c') {
+                const instructions = document.getElementById('top-right-instructions');
+                if (instructions) {
+                    // Toggle the display property
+                    if (instructions.style.display === 'none') {
+                        instructions.style.display = 'block';
+                    } else {
+                        instructions.style.display = 'none';
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
