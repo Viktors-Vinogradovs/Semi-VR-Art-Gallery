@@ -20,7 +20,7 @@ def load_paintings():
     # A broad query to get a variety of paintings with images
     params = {
         "q": "painting",
-        "limit": 50
+        "limit": 10
     }
 
     response = requests.get(AIC_SEARCH_URL, params=params)
